@@ -1,6 +1,6 @@
 --[[
 	CensusPlus for World of Warcraft(tm).
-
+	
 	Copyright 2005 - 2007 Cooper Sellers and WarcraftRealms.com
 
 	License:
@@ -46,10 +46,12 @@ local g_TZWarningSent = false;
 --
 ---------------------------------------------------------------------------------
 local CensusPlus_VERSION = "_HADES_1.2"; 			-- version
+local CensusPlus_VERSION = "5.0.2"; 			-- version
 local CensusPlus_MAXBARHEIGHT = 128;			-- Length of blue bars
 local CensusPlus_NUMGUILDBUTTONS = 10;			-- How many guild buttons are on the UI?
 local MAX_CHARACTER_LEVEL = 85;					-- Maximum level a PC can attain
-local MAX_WHO_RESULTS = 49;						-- Maximum number of who results the server will return
+local MAX_WHO_RESULTS = 48;						-- Maximum number of who results the server will return
+local CROSSFACTION_ENABLED = true;				-- Enable cross faction search
 CensusPlus_GUILDBUTTONSIZEY = 16;
 local CensusPlus_UPDATEDELAY = 5;				-- Delay time between /who messages
 local CP_MAX_TIMES = 50;
@@ -221,7 +223,7 @@ g_TimeDatabase[CENSUSPlus_ArathiBasin]			= 0;
 --  These two DO NOT need to be localized
 local CENSUSPlus_HORDE            = "Horde";
 local CENSUSPlus_ALLIANCE         = "Alliance";
-
+local CENSUSPlus_BOTH       = "Both";
 
 local g_FactionCheck = {};
 g_FactionCheck[CENSUSPlus_ORC]		= CENSUSPlus_HORDE;
@@ -241,8 +243,8 @@ local g_ReturnedZero = false;
 
 do
 	-- HACK
-	--[[
-		seeing as Blizzard improperly coded GuildControlPopupFrame_OnEvent to mess up when GUILD_ROSTER_EVENT is dispatched,
+	--[[  
+		seeing as Blizzard improperly coded GuildControlPopupFrame_OnEvent to mess up when GUILD_ROSTER_EVENT is dispatched, 
 		and there is no real harm in removing the handler entirely, that's what's happening. If and when Blizzard decides to fix it, this should be removed.
 		Thanks to ckknight of wowace for this
 	]]
@@ -253,7 +255,7 @@ end
 ----------------------------------------------------------------------------------
 --
 -- Set up confirmation boxes
---
+-- 
 ---------------------------------------------------------------------------------
 StaticPopupDialogs["CP_PURGE_CONFIRM"] = {
   text = CENSUSPlus_PURGE_LOCAL_CONFIRM,
@@ -272,14 +274,14 @@ StaticPopupDialogs["CP_PURGE_CONFIRM"] = {
 ----------------------------------------------------------------------------------
 --
 -- Set up Continue after override box
---
+-- 
 ---------------------------------------------------------------------------------
 StaticPopupDialogs["CP_CONTINUE_CENSUS"] = {
   text = CENSUSPlus_OVERRIDE_COMPLET_PAUSED,
   button1 = CENSUSPlus_CONTINUE,
   OnAccept = function()
 				g_CensusPlusManuallyPaused = false;
-				CensusPlusTakeButton:SetText( CENSUSPlus_PAUSE );
+				CensusPlusTakeButton:SetText( CENSUSPlus_PAUSE );			
 			end,
   sound = "levelup2",
   timeout = 0,
@@ -296,19 +298,19 @@ StaticPopupDialogs["CP_CONTINUE_CENSUS"] = {
 local function CP_HookAddMessage(frame)
 	local AddMessage = frame.AddMessage;
 	-- Create a closure to cleanly hook the AddMessage routine.
-	frame.AddMessage =
+	frame.AddMessage = 
 	function (this, msg, r, g, b, id)
 		if( ( g_TrackUnhandled or g_IsCensusPlusInProgress ) and msg ) then
 			local s, e;
 			local results = { };
 			local whoMsg = false;
---CensusPlus_Msg2( "Something : " .. msg );
-
+--CensusPlus_Msg2( "Something : " .. msg );			
+			
 			--
 			--  We don't need to process results from chat, we can get it straight from the who window (DUHH!)
 			--     So, we just need to see if we have a match, and suppress the output if so
 			--
-
+			
 --			results = CensusPlus_GatherSingleReturn( msg );
 --			if( results["NAME"] ~= nil ) then
 			results = { };
@@ -317,28 +319,28 @@ local function CP_HookAddMessage(frame)
 --				CensusPlus_Msg2( " Name : " .. results["NAME"] .. " L: " .. results["LEVEL"] .. " R: " .. results["RACE"] .. " C: " .. results["CLASS"].. " G: " .. results["GUILD"].. " Z: " .. results["ZONE"] );
 				whoMsg = true;
 --				WR_ProcessSingleEntry(  results["NAME"], results["LEVEL"], results["RACE"], results["CLASS"], results["GUILD"], results["ZONE"] );
-			else
+			else 
 				if( g_TrackUnhandled ) then
-					CensusPlus_Unhandled[msg] = 1;
+					CensusPlus_Unhandled[msg] = 1;			
 				end
 			end
-
+			
 			results = { };
 			s, e = strmatch(msg, WHO_NUM_RESULTS);
 			if( s ~= nil ) then
 				--  We got a match, now just need to determine if it's 0 or not, so we'll use a bit more lax check
 				whoMsg = true;
-
+				
 				local result;
 				s, e, result = string.find( msg, "(%d+).*" );
 				if( result == "0" ) then
 					g_ReteurnedZero = true;
 				end
-
+				
 				CensusPlus_ProcessWhoResults();
 			end
 
-
+		    	
     		if( whoMsg ) then
     			--
     			--  Also bail out of an override if in place
@@ -350,18 +352,18 @@ local function CP_HookAddMessage(frame)
 					g_CensusWhoOverrideMsg = nil;
 					g_WaitingForOverrideUpdate = false;
 					CensusPlus_Msg( CENSUSPlus_OVERRIDE_COMPLETE );
-					return AddMessage(this, msg, r, g, b, id)
-				elseif( CensusPlus_PerCharInfo["Verbose"] ~= true and
-						not g_CensusPlusPaused and
+					return AddMessage(this, msg, r, g, b, id)						
+				elseif( CensusPlus_PerCharInfo["Verbose"] ~= true and 
+						not g_CensusPlusPaused and 
 						not g_CensusPlusManuallyPaused ) then
 					return;
-
+									
 				end
-
+				
 				g_WaitingForWhoUpdate = false;
     		end
-
-			return AddMessage(this, msg, r, g, b, id)
+    			
+			return AddMessage(this, msg, r, g, b, id)						
 		else
 			return AddMessage(this, msg, r, g, b, id)
 		end
@@ -410,7 +412,7 @@ local function InitConstantTables()
 		val = (i*5)/MAX_CHARACTER_LEVEL;
 		g_TotalCharacterXPPerLevel[i] = math.exp(val);
 	end
-
+	
 end
 
 -----------------------------------------------------------------------------------
@@ -420,10 +422,15 @@ end
 -----------------------------------------------------------------------------------
 function CensusPlus_GetFactionRaces(faction)
 	local ret = {};
+	if(CROSSFACTION_ENABLED) then
+		faction = CENSUSPlus_BOTH;
+	end
 	if (faction == CENSUSPlus_HORDE) then
-		ret = {CENSUSPlus_ORC, CENSUSPlus_TAUREN, CENSUSPlus_TROLL, CENSUSPlus_UNDEAD, CENSUSPlus_BLOODELF, CENSUSPlus_GOBLIN};
+		ret = {CENSUSPlus_ORC, CENSUSPlus_TAUREN, CENSUSPlus_TROLL, CENSUSPlus_UNDEAD, CENSUSPlus_BLOODELF, CENSUSPlus_GOBLIN };
 	elseif (faction == CENSUSPlus_ALLIANCE) then
 		ret = {CENSUSPlus_DWARF, CENSUSPlus_GNOME, CENSUSPlus_HUMAN, CENSUSPlus_NIGHTELF, CENSUSPlus_DRAENEI, CENSUSPlus_WORGEN};
+	elseif (faction == CENSUSPlus_BOTH) then
+		ret = {CENSUSPlus_ORC, CENSUSPlus_TAUREN, CENSUSPlus_TROLL, CENSUSPlus_UNDEAD, CENSUSPlus_BLOODELF, CENSUSPlus_GOBLIN, CENSUSPlus_DWARF, CENSUSPlus_GNOME, CENSUSPlus_HUMAN, CENSUSPlus_NIGHTELF, CENSUSPlus_DRAENEI, CENSUSPlus_WORGEN };
 	end
 	return ret;
 end
@@ -620,13 +627,13 @@ function CensusPlus_OnLoad( this )
 
 --	g_Pre_WhoList_UpdateOverride = WhoList_Update;
 --	WhoList_Update = CensusPlus_WhoList_Update;
-
+	
 --	g_Pre_FriendsFrame_Update  = FriendsFrame_Update;
 --	FriendsFrame_Update = CensusPlus_FriendsFrame_Update;
-
+	
 	g_SetItemRef_Override		= SetItemRef;
 	--SetItemRef					= CensusPlus_SetItemRef;
-
+	
 	--CP_Pre_OnEvent				= FriendsFrame_OnEvent;
 	--FriendsFrame_OnEvent		= CensusPlus_FriendsFrame_OnEvent;
 
@@ -637,7 +644,7 @@ function CensusPlus_OnLoad( this )
 
 	-- Hook the default chat frame's AddMessage method.
 	--CP_HookAddMessage(ChatFrame1);
-
+	
 	--
 	--  Set up an empty frame to do updates
 	--
@@ -650,7 +657,7 @@ function CensusPlus_FriendsFrame_OnEvent(self, event, ...)
 
 --	CensusPlus_Msg( "CP_FF_OE Message =>" .. event );
 
-	if(wholib == nil and
+	if(wholib == nil and 
 		event == "WHO_LIST_UPDATE" and g_IsCensusPlusInProgress and g_WaitingForWhoUpdate ) then
 		--
 		--  First check for an override
@@ -663,26 +670,26 @@ function CensusPlus_FriendsFrame_OnEvent(self, event, ...)
 			g_WaitingForOverrideUpdate = false;
 			CensusPlus_Msg( CENSUSPlus_OVERRIDE_COMPLETE_BUT_PAUSED );
 --			g_Pre_WhoList_UpdateOverride();
-
-
+			
+			
 	g_WaitingForWhoUpdate = false;
-	CP_Pre_OnEvent(...);
+	CP_Pre_OnEvent(...);			
 			--
 			--  If we opened the who window, do a manual pause and open a dialog
 			--
 			g_CensusPlusManuallyPaused = true;
-	        CensusPlusTakeButton:SetText( CENSUSPlus_UNPAUSE );
-
+	        CensusPlusTakeButton:SetText( CENSUSPlus_UNPAUSE );	
+	        
 			StaticPopup_Show ("CP_CONTINUE_CENSUS");
-
+					
 		elseif ( g_IsCensusPlusInProgress ) then
 			--
 			-- Only process who results if a CensusPlus is in progress
 			--
-
+			
 			CP_ProcessWhoEvent()
-
-
+				
+			
 		else
 		    --
 		    --  This is just a random /who done by the player
@@ -693,13 +700,13 @@ function CensusPlus_FriendsFrame_OnEvent(self, event, ...)
 		-- We got the who update
 		--
 		g_WaitingForWhoUpdate = false;
-
+		
 		return;
-
+		
 	end
-
+	
 	CP_Pre_OnEvent(self, event, ...);
-
+	
 end
 
 function CP_ProcessWhoEvent(query, ...)
@@ -725,9 +732,10 @@ function CP_ProcessWhoEvent(query, ...)
 	end
 		return;
 	end
-
+	
 	CensusPlus_ProcessWhoResults();
-	if (numWhoResults >= MAX_WHO_RESULTS) then
+	CensusPlus_Msg("Results count:"  .. numWhoResults);
+	if (numWhoResults > MAX_WHO_RESULTS) then
 		--
 		-- Who list is overflowed, split the query to make the return smaller
 		--
@@ -738,8 +746,9 @@ function CP_ProcessWhoEvent(query, ...)
 		local zoneLetter = g_CurrentJob.m_zoneLetter;
 		local letter = g_CurrentJob.m_Letter;
 
+		CensusPlus_Msg("STARTING ADVANCED FILTERING for levels " .. g_CurrentJob.m_MinLevel .. "-" .. g_CurrentJob.m_MaxLevel);
 		if (minLevel ~= maxLevel) then
-
+		
 			--
 			-- The level range is greater than a single level, so split it in half and submit the two jobs
 			--
@@ -758,10 +767,10 @@ function CP_ProcessWhoEvent(query, ...)
 				--
 				-- This job does not specify race, so split it that way, making four new jobs
 				--
-				local allRaces = {CENSUSPlus_ORC, CENSUSPlus_TAUREN, CENSUSPlus_TROLL, CENSUSPlus_UNDEAD, CENSUSPlus_BLOODELF, CENSUSPlus_GOBLIN, CENSUSPlus_DWARF, CENSUSPlus_GNOME, CENSUSPlus_HUMAN, CENSUSPlus_NIGHTELF, CENSUSPlus_DRAENEI, CENSUSPlus_WORGEN};
-				local numRaces = table.getn(allRaces); --This line is showing all races, even those of other factions. Intended for GMs only.
+				local thisFactionRaces = CensusPlus_GetFactionRaces(factionGroup);
+				local numRaces = table.getn(thisFactionRaces);
 				for i = 1, numRaces, 1 do
-					local job = CensusPlus_CreateJob( level, level, {allRaces[i]}, nil, nil );
+					local job = CensusPlus_CreateJob( level, level, thisFactionRaces[i], nil, nil );
 					InsertJobIntoQueue(job);
 				end
 			else
@@ -769,10 +778,10 @@ function CP_ProcessWhoEvent(query, ...)
 					--
 					-- This job does not specify class, so split it that way, making more jobs
 					--
-					local thisRaceClasses = GetRaceClasses(race[1]);
+					local thisRaceClasses = GetRaceClasses(race);
 					local numClasses = table.getn(thisRaceClasses);
 					for i = 1, numClasses, 1 do
-						local job = CensusPlus_CreateJob( level, level, race, {thisRaceClasses[i]}, nil );
+						local job = CensusPlus_CreateJob( level, level, race, thisRaceClasses[i], nil );
 						InsertJobIntoQueue(job);
 					end
 				else
@@ -810,7 +819,7 @@ function CP_ProcessWhoEvent(query, ...)
 			end
 		end
 	end
-
+	
 	local whoText = CensusPlus_CreateWhoText(g_CurrentJob);
 
 	if whoText == query then
@@ -950,7 +959,7 @@ function CensusPlus_FriendsFrame_Update()
 		local guildName, title, rank = GetGuildInfo("player");
 		if ( guildName ) then
 			FriendsFrameTitleText:SetText(format(GUILD_TITLE_TEMPLATE, title, guildName));
-		else
+		else 
 			FriendsFrameTitleText:SetText("");
 		end
 		--GuildStatus_Update();
@@ -968,7 +977,7 @@ end
 -----------------------------------------------------------------------------------
 function CensusPlus_WhoHandler( msg )
 	if( g_IsCensusPlusInProgress == true ) then
-CensusPlus_Msg( "Census Who Handler" );
+CensusPlus_Msg( "Census Who Handler" );	
 		if ( msg == "" ) then
 			msg = WhoFrame_GetDefaultWhoCommand();
 			ShowWhoPanel();
@@ -976,7 +985,7 @@ CensusPlus_Msg( "Census Who Handler" );
 			-- Remove the "cheat" part later!
 			ShowWhoPanel();
 		end
-
+		
 		--
 		--  Queue up the command to run next
 		--
@@ -1323,7 +1332,7 @@ function CensusPlus_StartCensus()
 		--  Set a timer
 		--
 		g_CensusPlus_StartTime = time();
-
+	
 		--
 		-- Initialize the job queue and counters
 		--
@@ -1350,23 +1359,23 @@ function CensusPlus_StartCensus()
             local job = CensusPlus_CreateJob( counter*10 + 1, counter*10+10, nil, nil, nil );
             InsertJobIntoQueue(job);
         end
-
+        
         local job = CensusPlus_CreateJob( 81, 84, nil, nil, nil );
         InsertJobIntoQueue(job);
-
+        
 		job = CensusPlus_CreateJob( 85, 85, nil, nil, nil );
 		InsertJobIntoQueue(job);
-
+        
 --        for counter = 60, MAX_CHARACTER_LEVEL, 1  do
 --			local job = CensusPlus_CreateJob( counter, counter, nil, nil, nil );
 --			InsertJobIntoQueue(job);
 --        end
 
---	Test inserts
+--	Test inserts        
 --        local job = CensusPlus_CreateJob( 11, 12, "Troll", nil, nil );
 --        InsertJobIntoQueue(job);
-
-
+        
+        
 		g_IsCensusPlusInProgress = true;
 		g_WaitingForWhoUpdate = false;
 		g_CensusPlusManuallyPaused = false;
@@ -1374,7 +1383,7 @@ function CensusPlus_StartCensus()
 		local hour, minute = GetGameTime();
 		g_TakeHour = hour;
 		g_ResetHour = true;
-
+		
 		wholib = wholib or LibStub:GetLibrary("LibWho-2.0", true);
 		--
 		--  Subvert WhoLib
@@ -1385,23 +1394,23 @@ function CensusPlus_StartCensus()
 			--
 --			g_WhoLibSubvert = SlashCmdList["WHO"];
 --			SlashCmdList["WHO"] = CensusPlus_WhoHandler;
---
---			g_WhoLibSendWhoSubvert = SendWho;
+--			
+--			g_WhoLibSendWhoSubvert = SendWho;			
 --			SendWho = WhoLibByALeX.hooks.SendWho;
---
+--			
 --			g_WhoLibResultSubvert = WhoLibByALeX.WHO_LIST_UPDATE;
 --			g_WhoLibChatSubvert = WhoLibByALeX.CHAT_MSG_SYSTEM;
 --			g_WhoLibAskWhoSubvert = WhoLibByALeX.AskWho;
---
+--			
 --			WhoLibByALeX.WHO_LIST_UPDATE = function( args ) end
 --			WhoLibByALeX.CHAT_MSG_SYSTEM = function( args ) end
 --			WhoLibByALeX.AskWho			 = function( args ) end
-
+			
 			CensusPlus_Msg( "Using WhoLib" );
 			CensusPlus_UPDATEDELAY = 60
 
 			--wholib.RegisterCallback("CensusPlus", "WHOLIB_QUERY_RESULT", CensusPlus_WhoLibEvent)
-
+			
 		end
 	end
 
@@ -1417,7 +1426,7 @@ function CensusPlus_StopCensus(  )
 	if (g_IsCensusPlusInProgress) then
         CensusPlusTakeButton:SetText( CENSUSPlus_TAKE );
         g_CensusPlusManuallyPaused = false;
-
+		
 		CensusPlusScanProgress:SetText( CENSUSPlus_SCAN_PROGRESS_0 );
 
 		g_JobQueue = {};
@@ -1428,7 +1437,7 @@ function CensusPlus_StopCensus(  )
 
 		--  Clean up the times
 		CensusPlus_PruneTimes();
-
+		
 --		if( wholib ) then
 --			SlashCmdList["WHO"] = g_WhoLibSubvert;
 --
@@ -1436,13 +1445,13 @@ function CensusPlus_StopCensus(  )
 --			WhoLibByALeX.WHO_LIST_UPDATE = g_WhoLibResultSubvert;
 --			WhoLibByALeX.CHAT_MSG_SYSTEM = g_WhoLibChatSubvert;
 --			WhoLibByALeX.AskWho			= g_WhoLibAskWhoSubvert;
-
-
+			
+			
 --			CensusPlus_Msg( "Unregistering with WhoLib" );
 
 			--wholib.UnregisterAllCallbacks("CensusPlus")
 --		end
-
+		
 	else
 		CensusPlus_Msg(CENSUSPlus_NOCENSUS);
 	end
@@ -1471,7 +1480,7 @@ function CensusPlus_DisplayResults(  )
 	g_LastCensusRun = time();
 
     CensusPlusTakeButton:SetText( CENSUSPlus_TAKE );
-
+    
 end
 
 -----------------------------------------------------------------------------------
@@ -1486,10 +1495,7 @@ function CensusPlus_CreateWhoText(job)
 	local whoText = "";
 	local race = job.m_Race;
 	if (race ~= nil) then
-		local n = 1;
-		for i = n, getn(race), 1 do
-			whoText = whoText.." r-\""..race[i].."\"";
-		end
+		whoText = whoText.." r-\""..race.."\"";
 	end
 
 	local class = job.m_Class;
@@ -1535,9 +1541,9 @@ function CensusPlus_CreateJob( minLevel, maxLevel, race, class, letter )
 	job.m_Race     = race;
 	job.m_Class    = class;
 	job.m_Letter   = letter;
-
-CensusPlus_DumpJob( job );
-
+	
+CensusPlus_DumpJob( job );	
+	
 	return job;
 end
 
@@ -1554,7 +1560,7 @@ function CensusPlus_DumpJob( job )
 	local race = job.m_Race;
 	if (race ~= nil) then
 		local n = 1;
-		whoText = whoText.." R: "..race[1];
+		whoText = whoText.." R: "..race;
 		-- for i = n, getn(race)-1, 1 do
 		-- 	whoText = whoText.." R: "..race[i];
 		-- end
@@ -1573,7 +1579,7 @@ function CensusPlus_DumpJob( job )
 	if (minLevel ~= nil) then
 		whoText = whoText.." min: ".. minLevel;
 	end
-
+	
 	local maxLevel = job.m_MaxLevel;
 	if (maxLevel ~= nil) then
 		whoText = whoText.." max: ".. maxLevel;
@@ -1588,8 +1594,8 @@ function CensusPlus_DumpJob( job )
 	if( letter ~= nil ) then
 		whoText = whoText.." N: "..letter;
 	end
-
---CensusPlus_Msg( "JOB DUMP: " .. whoText );
+	
+--CensusPlus_Msg( "JOB DUMP: " .. whoText );	
 end
 
 -----------------------------------------------------------------------------------
@@ -1830,7 +1836,7 @@ function CensusPlus_InitializeVariables()
 	if( CensusPlus_Database["TimesPlus"] == nil ) then
 	    CensusPlus_Database["TimesPlus"] = {};
 	end
-
+	
 	if( CensusPlus_BGInfo == nil ) then
 		CensusPlus_BGInfo = {};
 	end
@@ -1858,7 +1864,7 @@ function CensusPlus_InitializeVariables()
 		end
 	end
     CensusPlus_Database["Info"]["LoginServer"] = GetCVar("realmList");
-
+    
     local firstVersionRun = CensusPlus_Database["Info"][g_InterfaceVersion];
     local localeSetting = CensusPlus_Database["Info"]["Locale"];
     if( localeSetting == "??" ) then
@@ -1907,7 +1913,7 @@ function CensusPlus_InitializeVariables()
 	if( CensusPlus_Database["Info"]["AutoCensusTimer"] == nil ) then
 		CensusPlus_Database["Info"]["AutoCensusTimer"] = 1800;
 	end
-
+	
 	if( CensusPlus_Database["Info"]["CensusButtonPosition"] == nil ) then
 	    CensusPlus_Database["Info"]["CensusButtonPosition"] = 370;
 	end
@@ -1921,11 +1927,11 @@ function CensusPlus_InitializeVariables()
 	else
 		CensusButtonFrame:Hide();
 	end
-
+	
 	if( CensusPlus_Database["Info"]["UseLogBars"] == nil ) then
 		CensusPlus_Database["Info"]["UseLogBars"] = 1;
 	end
-	CP_OptionUseLogarithmicBars:SetChecked( CensusPlus_Database["Info"]["UseLogBars"]  );
+	CP_OptionUseLogarithmicBars:SetChecked( CensusPlus_Database["Info"]["UseLogBars"]  );		
 
     CensusPlus_AutoStart(miniStart);
 
@@ -1941,17 +1947,17 @@ function CensusPlus_InitializeVariables()
 
     CP_OptionAutoShowMinimapButton:SetChecked(CensusPlus_Database["Info"]["CensusButtonShown"]);
 --    CP_SliderButtonPos:SetValue(CensusPlus_Database["Info"]["CensusButtonPosition"]);
-
+    
     if( CensusPlus_PerCharInfo["PlayFinishSound"] == nil ) then
 		CensusPlus_PerCharInfo["PlayFinishSound"] = true;
 	end
-
-	CP_OptionPlaySoundOnCompleteButton:SetChecked( CensusPlus_PerCharInfo["PlayFinishSound"]  );
-
+	
+	CP_OptionPlaySoundOnCompleteButton:SetChecked( CensusPlus_PerCharInfo["PlayFinishSound"]  );	
+	
 	if( CensusPlus_PerCharInfo["Verbose"] == nil ) then
 		CensusPlus_PerCharInfo["Verbose"] = false;
 	end
-
+    
 
     --
     --  If we are in a guild, attempt to gather the guild roster data
@@ -1964,20 +1970,20 @@ function CensusPlus_InitializeVariables()
 	--  Prune times if we have too many
 	--
 	CensusPlus_PruneTimes();
-
+	
 	--
 	--  Prune BG info if we have too many
 	--
 	CensusPlus_PruneBGInfo();
-
+	
 	--
 	--  Check for WhoLib since it does not play nice with C+
 	--
 	--CensusPlus_CheckForWhoLib();
 	--CensusPlus_CheckForPrat();
-
+	
 	CensusPlus_Unhandled = nil;
-	CensusPlus_Unhandled = {};
+	CensusPlus_Unhandled = {};	
 end
 
 function CensusPlus_CheckForWhoLib()
@@ -2004,7 +2010,7 @@ function CensusPlus_OnUpdate()
 	end
 
 	if (g_IsCensusPlusInProgress == true and g_CensusPlusPaused == false and g_CensusPlusManuallyPaused == false ) then
-
+	
 		--
 		--  update our progress
 		--
@@ -2012,7 +2018,7 @@ function CensusPlus_OnUpdate()
 		if( numJobs > 0 ) then
 			CensusPlusScanProgress:SetText(format(CENSUSPlus_SCAN_PROGRESS, numJobs, CensusPlus_CreateWhoText( g_JobQueue[numJobs] ) ));
 		end
-
+	
 		if( g_ReturnedZero == true ) then
 			g_ReturnedZero = false;
 			--
@@ -2025,12 +2031,12 @@ function CensusPlus_OnUpdate()
 				local job = g_JobQueue[numJobs];
 				table.remove(g_JobQueue);
 				local whoText = CensusPlus_CreateWhoText(job);
-
-				--
+				
+				-- 
 				--  Zap our current job
 				--
 				g_CurrentJob = nil;
-
+				
 				g_CurrentJob = job;
 				g_WaitingForWhoUpdate = true;
 
@@ -2043,18 +2049,18 @@ function CensusPlus_OnUpdate()
 				if( CensusPlus_PerCharInfo["PlayFinishSound"] ) then
 					PlaySoundFile("Interface\\AddOns\\CensusPlus\\Sounds\\CensusComplete.ogg")
 				end
-
+				
 				CensusPlus_DoTimeCounts();
 				CensusPlus_DisplayResults();
 			end
 		end
-
+	
 		local now = GetTime();
 		local delta = now - g_LastOnUpdateTime;
 		if (not g_WaitingForWhoUpdate or delta > CensusPlus_UPDATEDELAY) then
 			g_LastOnUpdateTime = now;
 			if (g_WaitingForWhoUpdate == true ) then
-
+			
 				--
 				--  First check to see if we are waiting for an override
 				--
@@ -2076,7 +2082,7 @@ function CensusPlus_OnUpdate()
 					end
 				end
 			else
-
+			
 				--
 				--  Check to see if we have an override waiting
 				--
@@ -2109,7 +2115,7 @@ function CensusPlus_OnUpdate()
 						if( CensusPlus_PerCharInfo["PlayFinishSound"] ) then
 							PlaySoundFile("Interface\\AddOns\\CensusPlus\\Sounds\\CensusComplete.ogg")
 						end
-
+						
 						CensusPlus_DoTimeCounts();
 						CensusPlus_DisplayResults();
 					end
@@ -2204,11 +2210,11 @@ function CensusPlus_ProcessGuildResults()
     if( CensusPlus_Database["Info"]["Locale"] == nil ) then
 		return;
 	end
-
+	
 	if( g_CensusPlusLocale == "N/A" ) then
 		return;
 	end
-
+	
 
     --
     --  Grab temp var
@@ -2354,7 +2360,7 @@ function CensusPlus_ProcessWhoResults()
 	if( factionGroup == nil ) then
 		return
 	end
-
+	
 	local factionDatabase = realmDatabase[factionGroup];
 	if (factionDatabase == nil) then
 		realmDatabase[factionGroup] = {};
@@ -2393,7 +2399,7 @@ function CensusPlus_ProcessWhoResults()
 
 		--
 		--  Further check for problematic chars
-		--
+		--        
 		local pattern = "[0-9\| -]";
 		if( string.find( name, pattern ) ~= nil ) then
 			if( not g_ProblematicMessageShown ) then
@@ -2402,7 +2408,7 @@ function CensusPlus_ProcessWhoResults()
 			end
 			return;
 		end
-
+        
 
 		--
 		-- Get racial database
@@ -2486,7 +2492,7 @@ CensusPlus_Msg2( "Processing " .. name );
 	if( factionGroup == nil ) then
 		return
 	end
-
+	
 	local factionDatabase = realmDatabase[factionGroup];
 	if (factionDatabase == nil) then
 		realmDatabase[factionGroup] = {};
@@ -2495,12 +2501,12 @@ CensusPlus_Msg2( "Processing " .. name );
 
 	--
 	--  Remove the trailing ] that I can't remove through patterns
-	--
+	--	
 --	local oldname = name;
 --	name = string.sub( oldname, 1, string.len(oldname) - 3 );
-
+	
 	level = tonumber( level );
-
+	
 	--
 	--  Test the name for possible color coding
 	--
@@ -2509,7 +2515,7 @@ CensusPlus_Msg2( "Processing " .. name );
     if( karma_check ~= nil ) then
 		name = string.sub( name, 11, -3 );
     end
-
+    
 	local pattern = "[0-9\| :]";
     if( string.find( name, pattern ) ~= nil ) then
 		if( not g_ProblematicMessageShown ) then
@@ -2517,7 +2523,7 @@ CensusPlus_Msg2( "Processing " .. name );
 		end
 		return;
     end
-
+    
     --
     --  Do a race check just to be sure this is working
     --
@@ -2564,7 +2570,7 @@ CensusPlus_Msg2( "Processing " .. name );
 
 	g_TempCount[name] = class;
 	g_TempZoneCount[name] = zone;
-
+	
 --	CensusPlus_Msg2( "Processed 	" .. name );
 end
 
@@ -2708,7 +2714,7 @@ function CensusPlus_UpdateView()
 	if( not CensusPlus:IsVisible() ) then
 		return;
 	end
-
+	
 	if( g_CensusPlusLocale == "N/A" ) then
 		return;
 	end
@@ -2727,7 +2733,12 @@ function CensusPlus_UpdateView()
 		return;
 	end
 
-	CensusPlusFactionName:SetText(format(CENSUSPlus_FACTION, factionGroup));
+	if(CROSSFACTION_ENABLED) then
+		CensusPlusFactionName:SetText(format(CENSUSPlus_FACTION, "Cross Faction"));
+	else
+		CensusPlusFactionName:SetText(format(CENSUSPlus_FACTION, factionGroup));
+	end
+
 
 	if( CensusPlus_Database["Info"]["Locale"] ~= nil ) then
 		CensusPlusLocaleName:SetText(format(CENSUSPlus_LOCALE, CensusPlus_Database["Info"]["Locale"]));
@@ -2739,7 +2750,7 @@ function CensusPlus_UpdateView()
 	local levelKey = nil;
 	g_TotalCharacterXP = 0;
 	g_TotalCount = 0;
-
+	
 	--
 	-- Has the user selected a guild?
 	--
@@ -2770,12 +2781,12 @@ function CensusPlus_UpdateView()
 		CensusPlus_Guilds = {};
 		g_AccumulateGuildTotals = true;
 		CensusPlus_ForAllCharacters(realmName, factionGroup, raceKey, classKey, guildKey, levelKey, TotalsAccumulator);
-
+		
 		if( CensusPlus_EnableProfiling ) then
 			CensusPlus_Msg( "PROFILE: Time to do calcs 1 " .. debugprofilestop() / 1000000000 );
 			debugprofilestart();
 		end
-
+		
 	else
 		--
 		-- Get the overall totals and find guild information
@@ -2783,23 +2794,23 @@ function CensusPlus_UpdateView()
 		CensusPlus_Guilds = {};
 		g_AccumulateGuildTotals = true;
 		CensusPlus_ForAllCharacters(realmName, factionGroup, nil, nil, nil, nil, TotalsAccumulator);
-
+		
 		if( CensusPlus_EnableProfiling ) then
 			CensusPlus_Msg( "PROFILE: Time to do calcs 1 " .. debugprofilestop() / 1000000000 );
 			debugprofilestart();
 		end
-
+		
 		local size = table.getn(CensusPlus_Guilds);
 		if (size) then
 			table.sort(CensusPlus_Guilds, GuildPredicate);
 		end
-
+		
 		if( CensusPlus_EnableProfiling ) then
 			CensusPlus_Msg( "PROFILE: Time to sort guilds " .. debugprofilestop() / 1000000000 );
 			debugprofilestart();
-		end
+		end			
 	end
-
+	
 	local levelSearch = nil;
 	if (levelKey ~= nil) then
 		levelSearch = "  ("..CENSUSPlus_LEVEL..": ";
@@ -2820,12 +2831,12 @@ function CensusPlus_UpdateView()
 	CensusPlusTotalCharacters:SetText(totalCharactersText);
 	CensusPlusTotalCharacterXP:SetText(format(CENSUSPlus_TOTALCHARXP, g_TotalCharacterXP));
 	CensusPlus_UpdateGuildButtons();
-
+	
 	if( CensusPlus_EnableProfiling ) then
 		CensusPlus_Msg( "PROFILE: Update Guilds " .. debugprofilestop() / 1000000000 );
 		debugprofilestart();
 	end
-
+	
 	--
 	-- Accumulate totals for each race
 	--
@@ -2850,7 +2861,7 @@ function CensusPlus_UpdateView()
 	for i = 1, numRaces, 1 do
 		local race = thisFactionRaces[i];
 		local buttonName = "CensusPlusRaceBar"..i;
-
+		
 		local button = getglobal(buttonName);
 		local thisCount = g_RaceCount[i];
 		if ((thisCount ~= nil) and (thisCount > 0) and (maxCount > 0)) then
@@ -2862,8 +2873,8 @@ function CensusPlus_UpdateView()
 			button:Hide();
 		end
 		local normalTextureName="Interface\\AddOns\\CensusPlus\\Skin\\CensusPlus_"..g_RaceClassList[race];
-
-
+		
+		
 		local legendName = "CensusPlusRaceLegend"..i;
 		local legend = getglobal(legendName);
 		legend:SetNormalTexture(normalTextureName);
@@ -2948,11 +2959,11 @@ function CensusPlus_UpdateView()
 		end
 	end
 	local logMaxCount = math.log( maxCount );
-
+	
 	--
 	--  To make the data easier to use, we need to massage it a bit for levels
 	--
-
+	
 
 	--
 	-- Update level bars
@@ -2968,7 +2979,7 @@ function CensusPlus_UpdateView()
 			if( CensusPlus_Database["Info"]["UseLogBars"] == 0 ) then
 				height = floor(( (thisCount) / maxCount) * CensusPlus_MAXBARHEIGHT);
 			end
-
+			
 			if (height < 1 or height == nil ) then height = 1; end
 			button:SetHeight(height);
 			button:Show();
@@ -2983,19 +2994,19 @@ function CensusPlus_UpdateView()
 			end
 		end
 	end
-
+	
 	if( CensusPlus_EnableProfiling ) then
 		CensusPlus_Msg( "PROFILE: Update Levels " .. debugprofilestop() / 1000000000 );
-		debugprofilestart();
+		debugprofilestart();	
 	end
-
+	
 	if( CP_PlayerListWindow:IsVisible() ) then
 		CensusPlus_PlayerListOnShow();
 	end
-
+	
 
 	debugprofilestop();
-
+	
 end
 
 ----------------------------------------------------------------------------------
@@ -3264,7 +3275,7 @@ end
 function CensusPlus_VerifyLocale( locale )
 	if( CensusPlus_Database["Info"]["Locale"] ~= locale ) then
 		--
-		--  Purge
+		--  Purge 
 		--
 		CensusPlus_DoPurge()
 	end
@@ -3598,46 +3609,46 @@ function CensusPlus_UpdateBattleGroundInfo()
 	local numberQueues = 0;
 	local waitTime, timeInQueue;
 	local map = {};
-
+	
 	if( g_CensusPlusLocale == "N/A" ) then
 		return;
 	end
-
+	
 	for i=1, MAX_BATTLEFIELD_QUEUES do
 		map = {};
 		status, mapName, instanceID, lowestLevel, highestLevel = GetBattlefieldStatus(i);
 
 		if ( status ~= "none" ) then
 			numberQueues = numberQueues+1;
-
+			
 			if ( status == "queued" ) then
-				-- Update queue info
+				-- Update queue info 
 				waitTime = GetBattlefieldEstimatedWaitTime(i)/1000;
 				timeInQueue = GetBattlefieldTimeWaited(i)/1000;
-
+				
 				map[0] = waitTime;
 				map[1] = timeInQueue;
 				map[2] = mapName;
 				map[3] = "Inactive";
-
+				
 --				CensusPlus_Msg( "INSERT " .. mapName .. " : " .. map[2] .. " to " .. i );
 				CENSUSPLUS_CURRENT_BATTLEFIELD_QUEUES[i] = map;
 
 			elseif ( status == "confirm" ) then
 				-- In the battleground
-				--  Check to see if we know we've already entered, and if so, add info to
+				--  Check to see if we know we've already entered, and if so, add info to 
 				--		our database
 				map = CENSUSPLUS_CURRENT_BATTLEFIELD_QUEUES[i];
-
+				
 --				CensusPlus_Msg( "ACTIVE " .. mapName );
 --				CensusPlus_Msg( map[2] );
 				if( map ~= nil and map[3] == "Inactive" ) then
 					map[3] = "Active";
 
 					CENSUSPLUS_CURRENT_BATTLEFIELD_QUEUES[i] = map;
-
-					--  Make an entry in our database
-
+					
+					--  Make an entry in our database	
+					
 					--
 					-- Get the portion of the database for this server
 					--
@@ -3645,7 +3656,7 @@ function CensusPlus_UpdateBattleGroundInfo()
 					if (CensusPlus_BGInfo[realmName] == nil) then
 						CensusPlus_BGInfo[realmName] = {};
 					end
-
+					
 										--
 					-- Get the portion of the database for this faction
 					--
@@ -3654,19 +3665,19 @@ function CensusPlus_UpdateBattleGroundInfo()
 						if (CensusPlus_BGInfo[realmName][factionGroup] == nil) then
 							CensusPlus_BGInfo[realmName][factionGroup] = {};
 						end
-
+						
 						local playerLevel = UnitLevel( "player" );
 						if( playerLevel ~= nil ) then
 							if (CensusPlus_BGInfo[realmName][factionGroup][playerLevel] == nil) then
 								CensusPlus_BGInfo[realmName][factionGroup][playerLevel] = {};
 							end
-
+						
 							local hour, minute = GetGameTime();
 							CensusPlus_BGInfo[realmName][factionGroup][playerLevel][CensusPlus_DetermineServerDate() .. "&" .. hour .. ":" .. minute .. ":00"] =
 											map[2] .. "&" .. map[0] .. "&" .. map[1] .. "&" .. lowestLevel .. "&" .. highestLevel;
 						end
 					end
-				end
+				end				
 			end
 		end
 	end
@@ -3682,7 +3693,7 @@ function CensusPlus_PruneBGInfo()
 				if ( factionName ~= nil and table.getn( factionDatabase ) > 0 ) then
 					for level, levelDatabase in pairs( factionDatabase ) do
 						if( level ~= nil and table.getn( levelDatabase ) > 0 ) then
-							for moment, data in pairs( levelDatabase ) do
+							for moment, data in pairs( levelDatabase ) do						
 								--  Moment is in format of YYYY-MM-DD&HH:MM
 								local test = string.sub( moment, 1, 2 );
 								local tYear, tMonth, tDay;
@@ -3755,9 +3766,9 @@ test[16] = "|Hplayer:Seroa|h[Seroa]|h: Level 67 Night Elf Paladin - Nagrand";
 		CensusPlus_Msg( "Checking : " .. case );
 		local t = CensusPlus_GatherSingleReturn( case );
 		if( t ~= nil ) then
-			CensusPlus_Msg( index .. " Name : " .. t["NAME"]
-								.. " L: " .. t["LEVEL"]
-								.. " R: " .. t["RACE"]
+			CensusPlus_Msg( index .. " Name : " .. t["NAME"] 
+								.. " L: " .. t["LEVEL"] 
+								.. " R: " .. t["RACE"] 
 								.. " C: " .. t["CLASS"]
 								.. " G: " .. t["GUILD"]
 								.. " Z: " .. t["ZONE"] );
@@ -3779,7 +3790,7 @@ test[16] = "|Hplayer:Seroa|h[Seroa]|h: Level 67 Night Elf Paladin - Nagrand";
 	else
 		CensusPlus_Msg( "This name is NOT problematic => " .. name );
     end
-]]--
+]]--	
 
 end
 
@@ -3794,8 +3805,8 @@ function CensusPlus_GatherSingleReturn( line )
 	possibles[2] = "(" .. CENSUSPlus_BLOODELF .. ")" .. " ([%a%s]+)";
 	possibles[3] = "(%a+) " .. "(" .. CENSUSPlus_DEATHKNIGHT .. ")";
 	possibles[4] = "(%a+) (%a+)";
-
---CensusPlus_Msg2( "   CHECKING " .. line );
+	
+--CensusPlus_Msg2( "   CHECKING " .. line );	
 
 	if( g_PratLoaded ) then
 		s, e, junk, junk, junk, name, junk, junk, level_text, level, rcg, zone = string.find(line, CENSUS_SINGLE_MATCH_PATTERN_PRAT );
@@ -3816,7 +3827,7 @@ function CensusPlus_GatherSingleReturn( line )
 			race_class = RCG[0];
 			t["GUILD"] = RCG[1];
 		end
-
+		
 		--
 		--  Now we need to figure out race/class
 		--
@@ -3829,10 +3840,10 @@ function CensusPlus_GatherSingleReturn( line )
 				break;
 			end
 		end
-
+		
 --		CensusPlus_Msg2( " IN Fn Name : " .. t["NAME"] .. " L: " .. t["LEVEL"] .. " R: " .. t["RACE"] .. " C: " .. t["CLASS"].. " G: " .. t["GUILD"] .. " Z: " .. t["ZONE"] );
 	end
-
+	
 	return t;
 end
 
@@ -3853,21 +3864,21 @@ function CensusPlus_SetItemRef(link, text, button)
     					--
     					--  This is the part we need to snag
     					--
-
+    					
     					--
     					--  Queue up the command to run next
     					--
 --    					g_CensusWhoOverrideMsg = "n-"..name;
 --    					CensusPlus_Msg( CENSUSPlus_OVERRIDE );
-
+    					
 					CensusPlus_SendWho("n-"..name);
     					return;
     				end
     			end
             end
 		end
-	end
-
+	end	
+	
 	g_SetItemRef_Override( link, text, button );
 end
 
@@ -3886,7 +3897,7 @@ function CensusPlus_CleanChars()
 								if ((classKey == nil) or (classKey == className)) then
 									for characterName, character in pairs(classDatabase) do
 										if( characterName ~= nil ) then
-											if( string.find( characterName, pattern ) ~= nil ) then
+											if( string.find( characterName, pattern ) ~= nil ) then											
 												CensusPlus_AccumulatePruneData( realmName, factionName, raceName, className, characterName );
 												count = count + 1;
 											end
@@ -3900,7 +3911,7 @@ function CensusPlus_CleanChars()
 			end
 		end
 	end
-
+	
 	CensusPlus_PruneTheData();
 	CensusPlus_Msg( "Found " .. count .. " entries to remove" );
 end
@@ -3917,7 +3928,7 @@ function CensusPlus_SendWho( msg )
 	-- if( CensusPlus_PerCharInfo["Verbose"] == true ) then
 	-- 	CensusPlus_Msg(format(CENSUSPlus_SENDING, msg));
 	-- end
-
+	
 	if wholib then
 		wholib:AskWho({query = msg, queue = wholib.WHOLIB_QUEUE_QUIET, callback = CP_ProcessWhoEvent })
 	else

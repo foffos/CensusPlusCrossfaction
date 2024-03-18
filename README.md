@@ -1,11 +1,7 @@
 # CensusPlus
-### Modified for Hades Cataclysm server<br><br>
+### Modified to implement crossfaction search and show results in extended UI
 
-### What is this?<br>
-CensusPlus is a relatively popular addon created for World of Warcraft, particularly throughout the Burning Crusade, Wrath of the Lich King, and Cataclysm expansions. However, work on the addon stopped around the time that Cataclysm was released, so the functionality of it is minimal. The addon is supposed to query the entire server, then give detailed results about the popularion, class, race, and level distribution of the server population. This was thwarted by one problem: The way CensusPlus performs queries does not work properly on Blizzard's retail servers. Moreover, it does not work on Twinstar's Hades server (www.hades-wow.com). This repo is created to making the addon work properly and efficently for the Hades server, for use by the Hades staff.
+### What is this?
+this is a slightly modified version of "CensusPlus", many of the private cataclysm servers have implemented crossfaction to improve the gaming experience, this version of CensusPlus expands the character search and visualization to both factions.
 
-### FAQ
-- **Is this allowed?** Yes, CensusPlus is distributed under a GNU General Public License (Version 2), and allows for modifications to the software as long as I don't profit off of this, which I never intend on doing.
-- **How much of this did you change?** Currently, the biggest changes are in the search algorithm. Aside from that, some version details were modified.
-- **Do you work for Hades?** Yes, in the sense that I dedicate my time to the project. No, in the sense that I don't get paid.
-- **What is your favorite number?** 49.
+The value of MAX_WHO_RESULTS is preconfigured at 48, in order to bypass the limitation of 49 results set in many private servers.
