@@ -746,7 +746,21 @@ function CP_ProcessWhoEvent(query, ...)
 		local zoneLetter = g_CurrentJob.m_zoneLetter;
 		local letter = g_CurrentJob.m_Letter;
 
-		CensusPlus_Msg("STARTING ADVANCED FILTERING for levels " .. g_CurrentJob.m_MinLevel .. "-" .. g_CurrentJob.m_MaxLevel);
+		local advencedFilteringLevelDepth = "Levels [".. minLevel .. " - " .. maxLevel .. "]";
+		if (race ~= nil) then
+			advencedFilteringLevelDepth = advencedFilteringLevelDepth .. " - race [".. race .. "]";
+		end
+		if (class ~= nil) then
+			advencedFilteringLevelDepth = advencedFilteringLevelDepth .. " - class[".. class .. "]";
+		end
+		if (zoneLetter ~= nil) then
+			advencedFilteringLevelDepth = advencedFilteringLevelDepth .. " - zoneLetter[".. zoneLetter .. "]";
+		end
+		if (letter ~= nil) then
+			advencedFilteringLevelDepth = advencedFilteringLevelDepth .. " - letter[".. letter .. "]";
+		end
+
+		CensusPlus_Msg("STARTING ADVANCED FILTERING:" .. advencedFilteringLevelDepth);
 		if (minLevel ~= maxLevel) then
 		
 			--
@@ -1500,10 +1514,7 @@ function CensusPlus_CreateWhoText(job)
 
 	local class = job.m_Class;
 	if (class ~= nil) then
-		local n = 1;
-		for i = n, getn(class), 1 do
-			whoText = whoText.." c-\""..class[i].."\"";
-		end
+		whoText = whoText.." c-\""..class.."\"";
 	end
 
 	local minLevel = tostring( job.m_MinLevel );
@@ -1569,7 +1580,7 @@ function CensusPlus_DumpJob( job )
 	local class = job.m_Class;
 	if (class ~= nil) then
 		local n = 1;
-		whoText = whoText.." C: "..class[1];
+		whoText = whoText.." C: "..class;
 		-- for i = n, getn(class)-1, 1 do
 		-- 	whoText = whoText.." C: "..class[i];
 		-- end
